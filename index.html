@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather App</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background: linear-gradient(to right, #6dd5fa, #2980b9);
+        color: white;
+    }
+    .container {
+        margin-top: 50px;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 20px;
+        border-radius: 15px;
+        width: 350px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    select, input, button {
+        padding: 8px;
+        margin: 5px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: none;
+    }
+    input {
+        width: 220px;
+    }
+    .suggestions {
+        border: 1px solid #ccc;
+        background: white;
+        width: 240px;
+        margin: 0 auto;
+        position: absolute;
+        z-index: 1000;
+        color: black;
+        text-align: left;
+    }
+    .suggestion-item {
+        padding: 8px;
+        cursor: pointer;
+    }
+    .suggestion-item:hover {
+        background-color: #ddd;
+    }
+    .weather-display {
+        margin-top: 20px;
+        display: none;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 15px;
+        border-radius: 10px;
+    }
+    .error {
+        color: yellow;
+        display: none;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌤 Weather App</h1>
+
+    <!-- Country Selector -->
+    <select id="countrySelect">
+        <option value="">Select Country</option>
+        <option value="IN">India</option>
+        <option value="US">United States</option>
+        <option value="GB">United Kingdom</option>
+        <option value="CA">Canada</option>
+        <option value="AU">Australia</option>
+        <option value="FR">France</option>
+        <option value="DE">Germany</option>
+        <option value="IT">Italy</option>
+        <option value="JP">Japan</option>
+        <option value="BR">Brazil</option>
+        <option value="ZA">South Africa</option>
+        <option value="MX">Mexico</option>
+        <option value="RU">Russia</option>
+        <option value="CN">China</option>
+        <option value="SG">Singapore</option>
+        <option value="AE">United Arab Emirates</option>
+        <option value="AR">Argentina</option>
+        <option value="ES">Spain</option>
+    </select>
+    
+    <!-- City Input -->
+    <div style="position: relative; display: inline-block;">
+        <input type="text" id="cityInput" placeholder="Enter city name">
+        <div id="suggestions" class="suggestions"></div>
+    </div>
+
+    <!-- Button -->
+    <button id="getWeatherBtn">Get Weather</button>
+    
+    <!-- Error Message -->
+    <div id="errorMessage" class="error"></div>
+    
+    <!-- Weather Display -->
+    <div class="weather-display" id="weatherDisplay">
+        <h2 id="locationName"></h2>
+        <p id="temperature"></p>
+        <p id="description"></p>
+        <p id="windSpeed"></p>
+        <p id="humidity"></p>
+    </div>
+</div>
+
+<script>
+    const apiKey = "3f923143bd51d8b256163bfb242e9f51";
+    const countrySelect = document.getElementById("countrySelect");
+    const cityInput = document.getElementById("cityInput");
+    const suggestionsBox = document.getElementById("suggestions");
+    const getWeatherBtn = document.getElementById("getWeatherBtn");
+    const weatherDisplay = document.getElementById("weatherDisplay");
+    const errorMessage = document.getElementById("errorMessage");
+    const locationName = document.getElementById("locationName");
+    const temperature = document.getElementById("temperature");
+    const description = document.getElementById("description");
+    const windSpeed = document.getElementById("windSpeed");
+    const humidity = document.getElementById("humidity");
+
+    let selectedCity = "";
+    let selectedCountryCode = "";
+
+    // Auto-suggest city names
+    cityInput.addEventListener("input", async () => {
+        const query = cityInput.value.trim();
+        const countryCode = countrySelect.value;
+        if (query.length < 2 || !countryCode) {
+            suggestionsBox.innerHTML = "";
+            return;
+        }
+
+        const url = `https://api.openweathermap.org/geo/1.0/direct?q=${query},${countryCode}&limit=5&appid=${apiKey}`;
+        const response = await fetch(url);
+        const cities = await response.json();
+
+        suggestionsBox.innerHTML = "";
+        cities.forEach(city => {
+            const div = document.createElement("div");
+            div.classList.add("suggestion-item");
+            div.textContent = `${city.name}, ${city.state || ""}, ${city.country}`;
+            div.addEventListener("click", () => {
+                selectedCity = city.name;
+                selectedCountryCode = city.country;
+                cityInput.value = city.name;
+                suggestionsBox.innerHTML = "";
+            });
+            suggestionsBox.appendChild(div);
+        });
+    });
+
+    // Fetch weather
+    getWeatherBtn.addEventListener("click", () => {
+        const city = selectedCity || cityInput.value.trim();
+        const countryCode = selectedCountryCode || countrySelect.value;
+        if (!city || !countryCode) {
+            alert("Please select a country and enter a city.");
+            return;
+        }
+        getWeatherData(city, countryCode);
+    });
+
+    async function getWeatherData(city, countryCode) {
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${city},${countryCode}&appid=${apiKey}&units=metric`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error("City not found.");
+                }
+                throw new Error("An error occurred while fetching data.");
+            }
+            const data = await response.json();
+            displayWeatherData(data);
+            errorMessage.style.display = "none";
+        } catch (error) {
+            weatherDisplay.style.display = "none";
+            errorMessage.textContent = error.message;
+            errorMessage.style.display = "block";
+        }
+    }
+
+    function displayWeatherData(data) {
+        locationName.textContent = `${data.name}, ${data.sys.country}`;
+        temperature.textContent = `${Math.round(data.main.temp)}°C`;
+        description.textContent = data.weather[0].description;
+        windSpeed.textContent = `Wind: ${data.wind.speed} m/s`;
+        humidity.textContent = `Humidity: ${data.main.humidity}%`;
+        weatherDisplay.style.display = "block";
+    }
+</script>
+
+</body>
+</html>
